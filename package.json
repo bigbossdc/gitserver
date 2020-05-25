@@ -1,0 +1,22 @@
+{
+  "name": "gitserver",
+  "version": "1.0.0",
+  "description": "Git Server with Node JS",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "git"
+  ],
+  "author": "ellisjoe",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "express": "^4.17.1",
+    "node-git-server": "^0.6.1",
+    "path": "^0.12.7",
+    "request": "^2.88.2",
+    "sync-mysql": "^3.0.1"
+  }
+}
