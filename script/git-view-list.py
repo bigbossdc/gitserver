@@ -10,7 +10,6 @@ def getfolderinfo(username, reponame, branch, folder = ''):
 	if folder is not None and folder != '':
 		if folder[len(folder)-1] != '/':
 			folder += '/'
-		folder = folder.replace('?', " ")
 		lines = getshell("cd /var/www/git/gitbook/{0}/{1}.git && git ls-tree --full-tree {2} {3}".format(username, reponame, branch, folder)).split('\n')
 	else:
 		lines = getshell("cd /var/www/git/gitbook/{0}/{1}.git && git ls-tree --full-tree {2}".format(username, reponame, branch)).split('\n')
@@ -18,12 +17,13 @@ def getfolderinfo(username, reponame, branch, folder = ''):
 	for line in lines:
 		# 한 줄씩 들어왔음. /t로 구분할것
 		pathname = line.split('\t')[1]
+		pathnamecommand = pathname.replace(" ", "\\ ")
 		typeitems = line.split('\t')[0]
 		typename = 'file' if typeitems.split()[1] == 'blob' else 'folder'
-		result.append(''.join([pathname, '\t', getshell('cd /var/www/git/gitbook/{0}/{1}.git && git log -1 --pretty=format:"%s\t%ar" -- {2} {3}'.format(username, reponame, branch, pathname)), '\t', typename]))
+		result.append(''.join([pathname, '\t', getshell('cd /var/www/git/gitbook/{0}/{1}.git && git log -1 --pretty=format:"%s\t%ar" -- {2} {3}'.format(username, reponame, branch, pathnamecommand)), '\t', typename]))
 	return '\n'.join(result)
 
 if len(sys.argv) == 4:
 	print(getfolderinfo(sys.argv[1], sys.argv[2], sys.argv[3]))
-elif len(sys.argv) == 5:
-	print(getfolderinfo(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]))
+elif len(sys.argv) >= 5:
+	print(getfolderinfo(sys.argv[1], sys.argv[2], sys.argv[3], '\\ '.join(sys.argv[4:])))
