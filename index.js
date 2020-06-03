@@ -2,7 +2,7 @@ const path = require("path");
 const GitServer = require("node-git-server");
 const mysql = require("sync-mysql");
 const config = require("./db/sql_info").real;
-const requestWithPost = require("request");
+const request = require("request");
 const bodyParser = require("body-parser");
 
 const port = process.env.PORT || 7005;
@@ -62,16 +62,34 @@ const repos = new GitServer(path.resolve(__dirname, "/var/www/git/"), {
 
 // [중요] 클라이언트 -> 서버
 repos.on("push", (push) => {
+	console.log(`[Gitbook] Push information >> ${push.repo} / ${push.commit} (${push.branch})`);
+
 	push.accept();
-	console.log(`[Gitbook] Push accepted! >> ${push.repo} / ${push.commit} (${push.branch})`);
 
 	// Spring Boot 서버로 POST 통신을 보내기 ('request' 라이브러리 사용)
+	request.post(
+		{
+			headers: { "content-type": "application/json" },
+			url: "http://192.168.1.30:8080/gitbook/Repository/" + push.repo.split("/")[1] + "/pushProcess",
+			method: 'POST',
+			body: push,
+			json: true,
+		},
+		function (error, response, body) {
+			if (!error && (response.statusCode == 200 || response.statusCode == 304)) {
+				console.log("body : ", body);
+			} else {
+				console.log("error : ", error);
+			}
+		}
+	);
 });
 
 // 서버 -> 클라이언트
 repos.on("fetch", (fetch) => {
+	console.log(`[Gitbook] Fetch information >> ${fetch.repo} / ${fetch.commit}`);
+
 	fetch.accept();
-	console.log(`[Gitbook] Fetch accepted! >> ${fetch.repo} / ${fetch.commit}`);
 });
 
 repos.listen(port, () => {
