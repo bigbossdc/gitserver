@@ -70,7 +70,7 @@ repos.on("push", (push) => {
 	request.post(
 		{
 			headers: { "content-type": "application/json" },
-			url: "http://192.168.1.30:8080/gitbook/Repository/" + push.repo.split("/")[1] + "/pushProcess",
+			url: "http://127.0.0.1:8080/gitbook/Repository/" + push.repo.split("/")[1] + "/pushProcess",
 			method: 'POST',
 			body: push,
 			json: true,
@@ -80,6 +80,7 @@ repos.on("push", (push) => {
 				console.log("body : ", body);
 			} else {
 				console.log("error : ", error);
+				console.log("body : ", body);
 			}
 		}
 	);

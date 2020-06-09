@@ -10,7 +10,7 @@ module.exports = (function () {
 		},
 		real: {
 			// real server db info
-			host: "192.168.1.15",
+			host: "127.0.0.1",
 			port: "3306",
 			user: "gitbook",
 			password: "gitbook",
@@ -18,7 +18,7 @@ module.exports = (function () {
 		},
 		dev: {
 			// dev server db info
-			host: "192.168.1.15",
+			host: "127.0.0.1",
 			port: "3306",
 			user: "gitbook",
 			password: "gitbook",
