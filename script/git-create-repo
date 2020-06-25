@@ -1,0 +1,14 @@
+#!/bin/bash
+
+GIT_DIR="/var/www/git/gitbook"
+USER_NAME=$1
+REPO_NAME=$2
+
+mkdir -p "${GIT_DIR}/${USER_NAME}/${REPO_NAME}.git"
+cd "${GIT_DIR}/${USER_NAME}/${REPO_NAME}.git"
+
+git init --bare --shared &> /dev/null
+git config http.receivepack true
+git config http.uploadpack true
+git update-server-info
+echo "Git repository '${REPO_NAME}' created in ${GIT_DIR}/${USER_NAME}/${REPO_NAME}.git"
