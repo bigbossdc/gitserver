@@ -70,7 +70,7 @@ repos.on("push", (push) => {
 	request.post(
 		{
 			headers: { "content-type": "application/json" },
-			url: "http://127.0.0.1:8080/gitbook/Repository/" + push.username + "/pushProcess",
+			url: "http://127.0.0.1:8080/gitbook/Repository/" + push.repo.split("/")[1] + "/pushProcess",
 			method: 'POST',
 			body: push,
 			json: true,
