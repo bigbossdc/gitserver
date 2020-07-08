@@ -18,7 +18,9 @@ console.log("sync-mysql 객체 생성 완료 !!!");
 const repos = new GitServer(path.resolve(__dirname, "/var/www/git/"), {
 	autoCreate: false,
 	authenticate: ({ type, repo, user, headers }, next) => {
-		console.log("[Gitbook] Authentication info >> ", type, repo, user, repo.split("/")[1]);
+		const repoOwnerId = repo.split("/")[1];
+		const repoName = repo.split("/")[2];
+		console.log("[Gitbook] Authentication info >> ", type, repo, user, repoOwnerId, repoName);
 
 		// resolve() 또는 reject(거부 사유 메시지) 中 하나를 보낸다!!
 		return new Promise(function (resolve, reject) {
@@ -26,8 +28,6 @@ const repos = new GitServer(path.resolve(__dirname, "/var/www/git/"), {
 			if (type == "push") {
 				// 사용자 인증을 하도록 한다.
 				user((username, password) => {
-					console.log("[Gitbook] user info >> ", username, password);
-
 					// 1. 사용자 인증하기
 					const getUserCount = sqlConn.queueQuery("select count(*) as counted from user where id = ? and password = password(?)", [username, password]);
 					const userCount = getUserCount()[0].counted;
@@ -38,9 +38,9 @@ const repos = new GitServer(path.resolve(__dirname, "/var/www/git/"), {
 					}
 
 					// 2. 자신의 Repository인지 확인하기
-					if (repo.split("/")[1] != username) {
-						console.log("[Gitbook] Repository path not matched... user:", username, " <---> repo owner:", repo.split("/")[1]);
-						return reject("[Gitbook] Repository path not matched... user:", username, " <---> repo owner:", repo.split("/")[1]);
+					if (repoOwnerId != username) {
+						console.log("[Gitbook] Repository path not matched... user:", username, " <---> repo owner:", repoOwnerId);
+						return reject("[Gitbook] Repository path not matched... user:", username, " <---> repo owner:", repoOwnerId);
 					}
 
 					// 3. 사용자의 그룹 확인 (추후에 추가할것!)
@@ -51,7 +51,7 @@ const repos = new GitServer(path.resolve(__dirname, "/var/www/git/"), {
 				// end of Authentication Process with user(username, password)
 			} else {
 				// (push가 아닌)  fetch (clone, pull 등) 요청인 경우 인증 없이 fetch 처리
-				resolve();
+				return resolve();
 			}
 		});
 		// end of 'return new Promise(...)'
@@ -71,7 +71,7 @@ repos.on("push", (push) => {
 		{
 			headers: { "content-type": "application/json" },
 			url: "http://127.0.0.1:8080/gitbook/Repository/" + push.repo.split("/")[1] + "/pushProcess",
-			method: 'POST',
+			method: "POST",
 			body: push,
 			json: true,
 		},
@@ -84,6 +84,13 @@ repos.on("push", (push) => {
 			}
 		}
 	);
+});
+
+// [중요] 클라이언트 -> 서버
+repos.on("tag", (tag) => {
+	console.log(`[Gitbook] Tag information >> ${tag.repo} / ${tag.commit} (${tag.branch})`);
+
+	tag.accept();
 });
 
 // 서버 -> 클라이언트
