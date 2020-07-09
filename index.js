@@ -58,7 +58,11 @@ const repos = new GitServer(path.resolve(__dirname, "/var/www/git/"), {
 						});
 						console.log("Group Members: >>", groupMemberList);
 
-						// 그룹에 속해있지 않은 경우 reject하기 (추후에 추가하기)
+						// 그룹에 속해있지 않은 경우 reject하기 (추후에 추가하기!! 지금은 개인 repository로 취급힘)
+						if (repoOwnerId != username) {
+							console.log("[Gitbook] User does NOT belong to the group...");
+							return reject("[Gitbook] User does NOT belong to the group...");
+						}
 					}
 
 					// 만약 이상이 없는 경우 "git push" 또는 "git push --tag" 를 받아들이기
