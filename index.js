@@ -24,28 +24,44 @@ const repos = new GitServer(path.resolve(__dirname, "/var/www/git/"), {
 
 		// resolve() 또는 reject(거부 사유 메시지) 中 하나를 보낸다!!
 		return new Promise(function (resolve, reject) {
-			// "push" 요청이 들어온 경우...
-			if (type == "push") {
-				// 사용자 인증을 하도록 한다.
+			// "git push" 또는 "git push --tag" 요청이 들어온 경우...
+			if (type == "push" || type == "tag") {
+				// 사용자 인증 실시 (Basic Authentication)
 				user((username, password) => {
-					// 1. 사용자 인증하기
+					// 1. 사용자 정보 & repository 정보 가져오기
 					const getUserCount = sqlConn.queueQuery("select count(*) as counted from user where id = ? and password = password(?)", [username, password]);
+					const getGitInfo = sqlConn.queueQuery("select * from git where user_no = (select no from user U where U.id = ?) and git_name = ?", [repoOwnerId, repoName]);
 					const userCount = getUserCount()[0].counted;
+					const gitInfo = getGitInfo()[0];
 					console.log("[Gitbook] MySql response : ", userCount === 1 ? true : false);
+
+					// 2. 사용자 인증 여부 확인하기
 					if (userCount !== 1) {
-						console.log("[Gitbook] Error : Authorization failed with user :", username);
-						return reject("[Gitbook] Error : Authorization failed with user...");
+						console.log("[Gitbook] Error : Authentication failed with user :", username);
+						return reject("[Gitbook] Error : Authentication failed with user...");
 					}
 
-					// 2. 자신의 Repository인지 확인하기
-					if (repoOwnerId != username) {
-						console.log("[Gitbook] Repository path not matched... user:", username, " <---> repo owner:", repoOwnerId);
-						return reject("[Gitbook] Repository path not matched... user:", username, " <---> repo owner:", repoOwnerId);
+					// 3. 개인 repository인 경우 --> 자신의 Repository인지 확인하기 (개인 repository인 경우!)
+					if (gitInfo.group_no === null && repoOwnerId != username) {
+						console.log("[Gitbook] Repository ownership not matched... user:", username, " <---> repo owner:", repoOwnerId);
+						return reject("[Gitbook] User is authenticated, but doesn't have an ownership of current repository...");
 					}
 
-					// 3. 사용자의 그룹 확인 (추후에 추가할것!)
+					// 4. 해당 repository가 그룹 repository인 경우...(개인 repository가 아님!)
+					if (gitInfo.group_no !== null) {
+						// 해당 그룹에 속한 회원들을 조회하기
+						let groupMemberList = [];
+						const getGroupMemberList = sqlConn.queueQuery("select GL.user_no as user_no, U.id as id from group_list GL join user U on (GL.user_no = U.no) where group_no = ?", [gitInfo.group_no]);
 
-					// 최종적으로 statusCode 바탕으로 결과 처리
+						getGroupMemberList().map((memberInfo) => {
+							groupMemberList.push(memberInfo.id);
+						});
+						console.log("Group Members: >>", groupMemberList);
+
+						// 그룹에 속해있지 않은 경우 reject하기 (추후에 추가하기)
+					}
+
+					// 만약 이상이 없는 경우 "git push" 또는 "git push --tag" 를 받아들이기
 					return resolve();
 				});
 				// end of Authentication Process with user(username, password)
