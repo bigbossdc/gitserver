@@ -49,7 +49,7 @@ const repos = new GitServer(path.resolve(__dirname, "/var/www/git/"), {
 
 					// 4. 해당 repository가 그룹 repository인 경우...(개인 repository가 아님!)
 					if (gitInfo.group_no !== null) {
-						// 해당 그룹에 속한 회원들을 조회하기
+						// 4.1 해당 그룹에 속한 회원들을 조회하기
 						let groupMemberList = [];
 						const getGroupMemberList = sqlConn.queueQuery("select GL.user_no as user_no, U.id as id from group_list GL join user U on (GL.user_no = U.no) where group_no = ?", [gitInfo.group_no]);
 
@@ -58,10 +58,19 @@ const repos = new GitServer(path.resolve(__dirname, "/var/www/git/"), {
 						});
 						console.log("Group Members: >>", groupMemberList);
 
-						// 그룹에 속해있지 않은 경우 reject하기 (추후에 추가하기!! 지금은 개인 repository로 취급힘)
-						if (repoOwnerId != username) {
+						// 4.2 그룹에 속해있지 않은 경우 --> reject하기
+						if (groupMemberList.includes(username) === false) {
 							console.log("[Gitbook] User does NOT belong to the group...");
 							return reject("[Gitbook] User does NOT belong to the group...");
+						}
+
+						// 4.3 그룹에 속해있을 때, 해당 repository가 개방되지 않은 경우...
+						if (gitInfo.visible === "private") {
+							// repository 담당자가 아닌 경우 --> reject하기
+							if (repoOwnerId != username) {
+								console.log("[Gitbook] Locked group repository... status:", gitInfo.visible, ", user:", username, " <---> repo owner:", repoOwnerId);
+								return reject("[Gitbook] This group repository is currently locked! Please contact to author of current repository...");
+							}
 						}
 					}
 
@@ -69,8 +78,46 @@ const repos = new GitServer(path.resolve(__dirname, "/var/www/git/"), {
 					return resolve();
 				});
 				// end of Authentication Process with user(username, password)
+			}
+			// "git fetch" 또는 "git clone" 요청이 들어온 경우...
+			else if (type == "fetch") {
+				const getGitInfo = sqlConn.queueQuery("select * from git where user_no = (select no from user U where U.id = ?) and git_name = ?", [repoOwnerId, repoName]);
+				const resultArr = getGitInfo();
+				const gitInfo = resultArr[0];
+
+				// 1. repository가 존재하지 않는 경우 --> reject하기
+				if (resultArr.length === 0) {
+					console.log("[Gitbook] Error : Repository not found...");
+					return reject("[Gitbook] Error : Repository not found...");
+				}
+				// 2. repository가 존재하는 경우...
+				else {
+					// 2.1 repository가 "private" 으로 잡긴 경우 --> 원작자 인증하기
+					if (gitInfo.visible === "private") {
+						user((username, password) => {
+							const getUserCount = sqlConn.queueQuery("select count(*) as counted from user where id = ? and password = password(?)", [username, password]);
+							const userCount = getUserCount()[0].counted;
+							console.log("[Gitbook] MySql response : ", userCount === 1 ? true : false);
+
+							if (userCount !== 1) {
+								console.log("[Gitbook] Error : Authentication failed with user :", username);
+								return reject("[Gitbook] Error : Authentication failed with user...");
+							}
+
+							if (repoOwnerId != username) {
+								console.log("[Gitbook] Not an owner of this repository... user: ", username, ", repo status: ", gitInfo.visible);
+								return reject("[Gitbook] User is authenticated, but the repository is currently locked! Please contact to author of current repository...");
+							}
+
+							return resolve();
+						});
+					}
+					// 2.2 repository가 "private" 이 아닌 경우 --> fetch 승인
+					else {
+						return resolve();
+					}
+				}
 			} else {
-				// (push가 아닌)  fetch (clone, pull 등) 요청인 경우 인증 없이 fetch 처리
 				return resolve();
 			}
 		});
