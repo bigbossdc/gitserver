@@ -1,7 +1,5 @@
 /node_modules
-/test*.js
 /.settings/
 
 **/node_modules
-**/test*.js
 **/.settings/
